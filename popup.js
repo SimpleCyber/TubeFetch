@@ -8,10 +8,19 @@ document.addEventListener('DOMContentLoaded', function() {
   const title          = document.getElementById('title');
   const downloadOptions = document.querySelector('.download-options');
 
-  // const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
-    const BACKEND_URL = 'http://localhost:4000';
+  const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+  // const BACKEND_URL = 'http://localhost:4000';
 
-  let sessionId = Math.random().toString(36).substring(2, 15);
+  // Retrieve or generate sessionId from storage
+  let sessionId;
+  chrome.storage.local.get(['sessionId'], (result) => {
+    if (result.sessionId) {
+      sessionId = result.sessionId;
+    } else {
+      sessionId = Math.random().toString(36).substring(2, 15);
+      chrome.storage.local.set({ sessionId: sessionId });
+    }
+  });
 
   /**
    * Fetches YouTube and Google cookies and formats them in Netscape format for yt-dlp.
@@ -100,6 +109,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         const cookies = await getYoutubeCookies();
+        // Wait for sessionId to be loaded from storage if it hasn't been yet
+        if (!sessionId) {
+          sessionId = await new Promise(resolve => {
+            chrome.storage.local.get(['sessionId'], (res) => resolve(res.sessionId));
+          });
+        }
+
         let response = await fetch(`${BACKEND_URL}/info`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -208,8 +224,6 @@ document.addEventListener('DOMContentLoaded', function() {
               </span>`;
 
             try {
-              // Use the backend /download streaming endpoint so yt-dlp injects
-              // the required auth headers — bare CDN URLs fail in Chrome downloads.
               const downloadEndpoint =
                 `${BACKEND_URL}/download` +
                 `?url=${encodeURIComponent(cleanUrl)}` +
@@ -217,22 +231,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 `&filename=${encodeURIComponent(safeFilename)}` +
                 `&sessionId=${sessionId}`;
 
+              button.classList.add('downloading');
+              button.style.setProperty('--progress', '0');
+
               chrome.downloads.download(
                 { url: downloadEndpoint, filename: safeFilename },
                 (dlId) => {
                   if (chrome.runtime.lastError) {
                     alert(`Download failed: ${chrome.runtime.lastError.message}`);
+                    button.classList.remove('downloading');
+                    button.disabled = false;
+                    button.innerHTML = originalContent;
+                    return;
                   }
+
+                  // Monitor progress
+                  const progressInterval = setInterval(() => {
+                    chrome.downloads.search({ id: dlId }, (items) => {
+                      if (items && items[0]) {
+                        const item = items[0];
+                        if (item.state === 'in_progress') {
+                          if (item.totalBytes > 0) {
+                            const percent = (item.bytesReceived / item.totalBytes);
+                            button.style.setProperty('--progress', percent);
+                            
+                            const percentText = `${(percent * 100).toFixed(0)}%`;
+                            const labelEl = button.querySelector('.quality-label');
+                            if (labelEl) labelEl.textContent = `Downloading ${percentText}`;
+                          } else {
+                            // Indeterminate progress
+                            button.style.setProperty('--progress', '0.5');
+                            const labelEl = button.querySelector('.quality-label');
+                            if (labelEl) labelEl.textContent = 'Streaming...';
+                          }
+                        } else if (item.state === 'complete' || item.state === 'interrupted') {
+                          clearInterval(progressInterval);
+                          button.classList.remove('downloading');
+                          button.disabled = false;
+                          button.innerHTML = originalContent;
+                          button.style.removeProperty('--progress');
+                        }
+                      }
+                    });
+                  }, 500);
                 }
               );
             } catch (err) {
               console.error('Download failed:', err);
               alert(`Download failed: ${err.message}`);
-            } finally {
-              setTimeout(() => {
-                button.disabled = false;
-                button.innerHTML = originalContent;
-              }, 1500);
+              button.disabled = false;
+              button.innerHTML = originalContent;
+              button.classList.remove('downloading');
             }
           });
 

@@ -142,8 +142,20 @@
       right: 0;
       height: 2px;
       background: linear-gradient(90deg, #ff0000, #ff6b6b);
-      transform: scaleX(0);
+      transform: scaleX(var(--progress, 0));
+      transform-origin: left;
       transition: transform 0.3s ease;
+      z-index: 2;
+    }
+
+    .download-button:not(.downloading):hover::before {
+      transform: scaleX(1);
+    }
+
+    .download-button.downloading::before {
+      background: linear-gradient(90deg, #2ecc71, #27ae60);
+      transform: scaleX(var(--progress, 0));
+      height: 3px;
     }
 
     .download-button:hover {
@@ -152,9 +164,7 @@
       box-shadow: 0 4px 12px rgba(255, 0, 0, 0.1);
     }
 
-    .download-button:hover::before {
-      transform: scaleX(1);
-    }
+    
 
     .quality-badge {
       position: absolute;
@@ -167,6 +177,7 @@
       color: white;
       letter-spacing: 0.5px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 3;
     }
 
     .download-button[data-quality="highest"] .quality-badge {

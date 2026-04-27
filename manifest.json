@@ -8,8 +8,12 @@
     "downloads",
     "storage",
     "scripting",
-    "cookies"
+    "cookies",
+    "tabs"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "host_permissions": [
     "https://*.youtube.com/*",
     "https://*.google.com/*",
