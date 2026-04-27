@@ -67,6 +67,13 @@ function getCookieOption(sessionId) {
         return { cookies: COOKIES_PATH, isTemp: false };
     }
 
+    // 3. Fallback to browser cookies (only if running locally)
+    const isLocal = !process.env.RENDER && !process.env.PORT; // Crude check for local env
+    if (isLocal) {
+        console.log(`[Cookies] Local environment detected, will try --cookies-from-browser chrome`);
+        return { cookiesFromBrowser: 'chrome' };
+    }
+
     console.log(`[Cookies] No cookies found`);
     return {};
 }
@@ -202,10 +209,11 @@ app.all('/info', async (req, res) => {
         preferFreeFormats: true,
         noPlaylist: true,
         forceIpv4: true,
-        userAgent: '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0 Safari/537.36',
         referer: 'https://www.youtube.com',
-        extractorArgs: 'youtube:player_client=android_vr,web',
-        cookies: cookieData.cookies
+        extractorArgs: 'youtube:player_client=ios,web',
+        cookies: cookieData.cookies,
+        cookiesFromBrowser: cookieData.cookiesFromBrowser
     }).then(output => {
         if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         const formats = output.formats
@@ -287,15 +295,17 @@ app.get('/download', async (req, res) => {
         '--no-playlist',
         '--no-check-certificates',
         '--force-ipv4',
-        '--user-agent', '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0 Safari/537.36',
         '--referer', 'https://www.youtube.com',
-        '--extractor-args', 'youtube:player_client=android_vr,web',
+        '--extractor-args', 'youtube:player_client=ios,web',
         '-o', '-', 
     ];
 
     const cookieData = getCookieOption(sessionId);
     if (cookieData.cookies) {
         args.push('--cookies', cookieData.cookies);
+    } else if (cookieData.cookiesFromBrowser) {
+        args.push('--cookies-from-browser', cookieData.cookiesFromBrowser);
     }
 
     if (formatId) {
@@ -381,8 +391,12 @@ app.get('/download-url', async (req, res) => {
             noCheckCertificates: true,
             noWarnings: true,
             forceIpv4: true,
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0 Safari/537.36',
+            referer: 'https://www.youtube.com',
+            extractorArgs: 'youtube:player_client=ios,web',
             format: formatId || 'bestvideo+bestaudio/best',
-            cookies: cookieData.cookies
+            cookies: cookieData.cookies,
+            cookiesFromBrowser: cookieData.cookiesFromBrowser
         });
         if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         let downloadUrl = output.url || output.requested_formats?.[0]?.url;
