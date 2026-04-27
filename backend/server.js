@@ -209,9 +209,9 @@ app.all('/info', async (req, res) => {
         preferFreeFormats: true,
         noPlaylist: true,
         forceIpv4: true,
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0 Safari/537.36',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         referer: 'https://www.youtube.com',
-        extractorArgs: 'youtube:player_client=ios,web',
+        extractorArgs: 'youtube:player_client=android,web',
         cookies: cookieData.cookies,
         cookiesFromBrowser: cookieData.cookiesFromBrowser
     }).then(output => {
@@ -295,9 +295,9 @@ app.get('/download', async (req, res) => {
         '--no-playlist',
         '--no-check-certificates',
         '--force-ipv4',
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0 Safari/537.36',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         '--referer', 'https://www.youtube.com',
-        '--extractor-args', 'youtube:player_client=ios,web',
+        '--extractor-args', 'youtube:player_client=android,web',
         '-o', '-', 
     ];
 
@@ -309,15 +309,23 @@ app.get('/download', async (req, res) => {
     }
 
     if (formatId) {
-        if (fmt && fmt.has_video && !fmt.has_audio) {
-            args.push('-f', `${formatId}+bestaudio/best`);
+        // If we have cached format info, we can be more precise about merging
+        if (fmt) {
+            if (fmt.has_video && !fmt.has_audio) {
+                args.push('-f', `${formatId}+bestaudio/best`);
+            } else {
+                args.push('-f', formatId);
+            }
         } else {
-            args.push('-f', formatId);
+            // No cache? Try the formatId directly but with a fallback
+            args.push('-f', `${formatId}+bestaudio/best / ${formatId} / best`);
         }
     } else {
         args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
     }
     args.push(cleanUrl);
+
+    console.log(`[/download] Executing: yt-dlp ${args.join(' ')}`);
 
     const ytProc = spawn(constants.YOUTUBE_DL_PATH, args);
     let headersSent = false;
@@ -391,9 +399,9 @@ app.get('/download-url', async (req, res) => {
             noCheckCertificates: true,
             noWarnings: true,
             forceIpv4: true,
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0 Safari/537.36',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             referer: 'https://www.youtube.com',
-            extractorArgs: 'youtube:player_client=ios,web',
+            extractorArgs: 'youtube:player_client=android,web',
             format: formatId || 'bestvideo+bestaudio/best',
             cookies: cookieData.cookies,
             cookiesFromBrowser: cookieData.cookiesFromBrowser
