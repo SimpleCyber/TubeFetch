@@ -153,33 +153,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // ── Pick the tiers we want to show ──────────────────────────────────
         // Tier helper: find best video format matching a height or label hint
-        function findBestVideo(height, labelHints = []) {
+        // ── Pick the tiers we want to show ──────────────────────────────────
+        // Tier helper: find best video format matching a height range or label hint
+        function findBestVideoInTier(maxHeight, minHeight) {
           return formats.find(f =>
             f.has_video && 
-            (f.height === height || labelHints.some(h => f.quality.toLowerCase().includes(h)))
+            ((f.height <= maxHeight && f.height >= minHeight) || 
+             (maxHeight === 1080 && f.quality.includes('1080')) ||
+             (maxHeight === 720 && f.quality.includes('720')))
           );
         }
 
-        // We'll show: best 1080p, best 720p, best 480p, and audio.
-        const tier1080 = findBestVideo(1080, ['1080']);
-        const tier720  = findBestVideo(720, ['720']);
-        const tier480  = findBestVideo(480, ['480']);
+        // We'll show: best 1080p+, best 720p, best 480p/360p, and audio.
+        const tier1080 = findBestVideoInTier(4320, 1080); // 1080p up to 4K
+        const tier720  = findBestVideoInTier(1079, 720);  // 720p
+        const tier480  = findBestVideoInTier(719, 480);   // 480p
+        const tier360  = findBestVideoInTier(479, 360);   // 360p
         
-        // Fallback combined: highest-filesize format that has both streams
-        const tierBestCombined = formats.find(f => f.has_video && f.has_audio);
         const bestAudio = formats.find(f => !f.has_video && f.has_audio);
 
         // Build the display list — dedup by format_id
         const seen = new Set();
         const displayTiers = [];
-        // Priority order: 1080p, 720p, 480p, Best Combined, Audio
-        for (const f of [tier1080, tier720, tier480, tierBestCombined, bestAudio]) {
+        // Priority order
+        for (const f of [tier1080, tier720, tier480, tier360, bestAudio]) {
           if (f && !seen.has(f.format_id)) {
             seen.add(f.format_id);
             displayTiers.push(f);
           }
         }
-        if (displayTiers.length === 0) displayTiers.push(...formats.slice(0, 3));
+        
+        // Final fallback if something went wrong
+        if (displayTiers.length === 0) {
+          const uniqueFormats = [];
+          formats.forEach(f => {
+            if (!seen.has(f.format_id)) {
+              seen.add(f.format_id);
+              uniqueFormats.push(f);
+            }
+          });
+          displayTiers.push(...uniqueFormats.slice(0, 4));
+        }
 
         // ── Quality meta for styling ─────────────────────────────────────────
         function getQualityMeta(fmt) {
@@ -191,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (h >= 1080 || q.includes('1080')) return { dataQuality: 'highest', badge: '1080p', label: 'Full HD',     sub: 'Best Quality' };
           if (h >= 720  || q.includes('720'))  return { dataQuality: '720p',    badge: '720p',  label: 'HD Quality',   sub: 'Sharp & Fast' };
           if (h >= 480  || q.includes('480'))  return { dataQuality: '480p',    badge: '480p',  label: 'Standard',     sub: 'Smaller File' };
+          if (h >= 360  || q.includes('360'))  return { dataQuality: '360p',    badge: '360p',  label: 'Medium',       sub: 'Mobile Data' };
           
           const size = fmt.filesize ? `${(fmt.filesize/1024/1024).toFixed(0)} MB` : fmt.quality;
           return { dataQuality: '480p', badge: fmt.height ? `${fmt.height}p` : fmt.extension.toUpperCase(), label: fmt.quality, sub: size };
