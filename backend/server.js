@@ -209,7 +209,8 @@ app.all('/info', async (req, res) => {
         preferFreeFormats: true,
         noPlaylist: true,
         forceIpv4: true,
-        userAgent: '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"',
+        noCacheDir: true,
+        jsRuntimes: 'node',
         referer: 'https://www.youtube.com',
         extractorArgs: 'youtube:player_client=android,web',
         cookies: cookieData.cookies,
@@ -295,7 +296,8 @@ app.get('/download', async (req, res) => {
         '--no-playlist',
         '--no-check-certificates',
         '--force-ipv4',
-        '--user-agent', '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"',
+        '--no-cache-dir',
+        '--js-runtimes', 'node',
         '--referer', 'https://www.youtube.com',
         '--extractor-args', 'youtube:player_client=android,web',
         '-o', '-', 
@@ -308,20 +310,23 @@ app.get('/download', async (req, res) => {
         args.push('--cookies-from-browser', cookieData.cookiesFromBrowser);
     }
 
-    if (formatId) {
-        // If we have cached format info, we can be more precise about merging
+    const cleanFormatId = formatId ? String(formatId).trim() : null;
+
+    if (cleanFormatId) {
         if (fmt) {
             if (fmt.has_video && !fmt.has_audio) {
-                args.push('-f', `${formatId}+bestaudio/best`);
+                // Video only format? Merge with best audio, with robust fallbacks
+                args.push('-f', `${cleanFormatId}+bestaudio/bestvideo+bestaudio/best/${cleanFormatId}/best`);
             } else {
-                args.push('-f', formatId);
+                // Already has audio or unknown? Use it directly but with best fallback
+                args.push('-f', `${cleanFormatId}/bestvideo+bestaudio/best`);
             }
         } else {
-            // No cache? Try the formatId directly but with a fallback
-            args.push('-f', `${formatId}+bestaudio/best / ${formatId} / best`);
+            // No cache? Try the formatId directly but with robust fallbacks
+            args.push('-f', `${cleanFormatId}+bestaudio/bestvideo+bestaudio/best/${cleanFormatId}/best`);
         }
     } else {
-        args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
+        args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best');
     }
     args.push(cleanUrl);
 
@@ -399,7 +404,8 @@ app.get('/download-url', async (req, res) => {
             noCheckCertificates: true,
             noWarnings: true,
             forceIpv4: true,
-            userAgent: '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"',
+            noCacheDir: true,
+            jsRuntimes: 'node',
             referer: 'https://www.youtube.com',
             extractorArgs: 'youtube:player_client=android,web',
             format: formatId || 'bestvideo+bestaudio/best',
