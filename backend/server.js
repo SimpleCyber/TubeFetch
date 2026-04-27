@@ -3,18 +3,68 @@ const cors     = require('cors');
 const youtubedl = require('youtube-dl-exec');
 const { spawn } = require('child_process');
 const { constants } = require('youtube-dl-exec');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 4000;
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ── In-memory Cache & State ──────────────────────────────────────────────────
 const INFO_CACHE = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const inFlight = new Map();
+
+// ── Cookie & Session Management ──────────────────────────────────────────────
+const COOKIES_PATH = path.join(__dirname, 'cookies.txt');
+const SESSION_COOKIES = new Map();
+
+/**
+ * Saves cookie string to a temporary file and returns the path.
+ */
+function createTempCookieFile(cookieString) {
+    const tempPath = path.join(os.tmpdir(), `yt_cookie_${crypto.randomUUID()}.txt`);
+    fs.writeFileSync(tempPath, cookieString);
+    return tempPath;
+}
+
+/**
+ * Deletes a temporary file if it exists.
+ */
+function cleanupTempFile(filePath) {
+    try {
+        if (filePath && filePath.includes(os.tmpdir()) && fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+    } catch (e) {
+        console.error('Cleanup failed:', e.message);
+    }
+}
+
+/**
+ * Returns cookie option (file path) based on sessionId or default cookies.txt
+ */
+function getCookieOption(sessionId) {
+    // 1. Check if we have user-provided cookies for this session
+    if (sessionId && SESSION_COOKIES.has(sessionId)) {
+        const cookieStr = SESSION_COOKIES.get(sessionId);
+        const tempFile = createTempCookieFile(cookieStr);
+        return { cookies: tempFile, isTemp: true };
+    }
+
+    // 2. Fallback to global cookies.txt
+    if (fs.existsSync(COOKIES_PATH)) {
+        return { cookies: COOKIES_PATH, isTemp: false };
+    }
+
+    return {};
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,7 +116,7 @@ app.get('/', (req, res) => {
                 method: "GET",
                 params: { url: "YouTube video URL" },
                 description: "Returns video title, thumbnail, duration, and available formats with height/quality metadata.",
-                example: `http://localhost:${PORT}/info?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ`
+                example: `https://tubefetch-us1e.onrender.com//info?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ`
             },
             {
                 path: "/download",
@@ -77,14 +127,14 @@ app.get('/', (req, res) => {
                     filename: "Optional custom filename for the download"
                 },
                 description: "Streams the video/audio directly to the browser. Automatically handles high-quality merging (video+audio) if needed.",
-                example: `http://localhost:${PORT}/download?url=...&format=137&filename=cool_video.mp4`
+                example: `https://tubefetch-us1e.onrender.com//download?url=...&format=137&filename=cool_video.mp4`
             },
             {
                 path: "/download-url",
                 method: "GET",
                 params: { url: "YouTube video URL", format: "format_id" },
                 description: "Returns the direct YouTube CDN URL (for debugging purposes).",
-                example: `http://localhost:${PORT}/download-url?url=...&format=18`
+                example: `https://tubefetch-us1e.onrender.com//download-url?url=...&format=18`
             }
         ],
         usage: {
@@ -99,11 +149,21 @@ app.get('/', (req, res) => {
     res.send(JSON.stringify(documentation, null, 4));
 });
 
-// ── GET /info?url=<youtube_url> ───────────────────────────────────────────────
+// ── GET & POST /info ─────────────────────────────────────────────────────────
 
-app.get('/info', async (req, res) => {
-    const rawUrl = req.query.url;
+app.all('/info', async (req, res) => {
+    const rawUrl = req.method === 'POST' ? req.body.url : req.query.url;
+    const userCookies = req.method === 'POST' ? req.body.cookies : null;
+    const sessionId = req.method === 'POST' ? req.body.sessionId : req.query.sessionId;
+
     if (!rawUrl) return res.status(400).json({ error: 'URL is required' });
+
+    // Store cookies if provided in POST
+    if (userCookies && sessionId) {
+        SESSION_COOKIES.set(sessionId, userCookies);
+        // Clear cookies after 30 mins to avoid memory leaks
+        setTimeout(() => SESSION_COOKIES.delete(sessionId), 30 * 60 * 1000);
+    }
 
     let cleanUrl, videoId;
     try {
@@ -120,6 +180,8 @@ app.get('/info', async (req, res) => {
         catch (e) { return res.status(500).json({ error: 'In-flight fetch failed' }); }
     }
 
+    const cookieData = getCookieOption(sessionId);
+    
     const fetchPromise = youtubedl(cleanUrl, {
         dumpSingleJson: true,
         noCheckCertificates: true,
@@ -130,8 +192,10 @@ app.get('/info', async (req, res) => {
             'referer:youtube.com',
             'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ],
-        extractorArgs: 'youtube:player_client=android_vr,web'
+        extractorArgs: 'youtube:player_client=android_vr,web',
+        cookies: cookieData.cookies
     }).then(output => {
+        if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         const formats = output.formats
             .filter(f => f.vcodec !== 'none' || f.acodec !== 'none')
             .map(f => ({
@@ -162,6 +226,7 @@ app.get('/info', async (req, res) => {
     try {
         res.json(await fetchPromise);
     } catch (error) {
+        if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         console.error('[/info] Error:', error.stderr || error.message);
         res.status(500).json({ 
             error: 'Failed to fetch video information', 
@@ -189,7 +254,7 @@ app.get('/health', async (req, res) => {
 // ── GET /download?url=<youtube_url>&format=<format_id>&filename=<name> ────────
 
 app.get('/download', async (req, res) => {
-    const { url: rawUrl, format: formatId, filename = 'download' } = req.query;
+    const { url: rawUrl, format: formatId, filename = 'download', sessionId } = req.query;
 
     if (!rawUrl) return res.status(400).json({ error: 'URL is required' });
 
@@ -213,6 +278,11 @@ app.get('/download', async (req, res) => {
         '--extractor-args', 'youtube:player_client=android_vr,web',
         '-o', '-', 
     ];
+
+    const cookieData = getCookieOption(sessionId);
+    if (cookieData.cookies) {
+        args.push('--cookies', cookieData.cookies);
+    }
 
     if (formatId) {
         if (fmt && fmt.has_video && !fmt.has_audio) {
@@ -261,6 +331,7 @@ app.get('/download', async (req, res) => {
     });
 
     ytProc.on('close', () => {
+        if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         if (!res.writableEnded) res.end();
     });
 
@@ -272,7 +343,7 @@ app.get('/download', async (req, res) => {
 // ── GET /download-url?url=<youtube_url>&format=<format_id> ───────────────────
 
 app.get('/download-url', async (req, res) => {
-    const { url: rawUrl, format: formatId } = req.query;
+    const { url: rawUrl, format: formatId, sessionId } = req.query;
     if (!rawUrl) return res.status(400).json({ error: 'URL is required' });
 
     let cleanUrl, videoId;
@@ -288,19 +359,30 @@ app.get('/download-url', async (req, res) => {
         if (fmt?.url) return res.json({ url: fmt.url, filename: `${cached.title}.${fmt.extension}` });
     }
 
+    const cookieData = getCookieOption(sessionId);
+
     try {
         const output = await youtubedl(cleanUrl, {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
             format: formatId || 'bestvideo+bestaudio/best',
+            cookies: cookieData.cookies
         });
+        if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         let downloadUrl = output.url || output.requested_formats?.[0]?.url;
         if (!downloadUrl) return res.status(500).json({ error: 'No downloadable URL found' });
         res.json({ url: downloadUrl, filename: `${output.title}.${output.ext}` });
     } catch (error) {
+        if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         res.status(500).json({ error: 'Failed to get download URL', details: error.message });
     }
+});
+
+// ── 404 Catch-all (for debugging) ──────────────────────────────────────────
+app.use((req, res) => {
+    console.warn(`[404] ${req.method} ${req.url}`);
+    res.status(404).json({ error: 'Endpoint not found', method: req.method, url: req.url });
 });
 
 app.listen(PORT, () => {

@@ -9,6 +9,29 @@ document.addEventListener('DOMContentLoaded', function() {
   const downloadOptions = document.querySelector('.download-options');
 
   const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+  let sessionId = Math.random().toString(36).substring(2, 15);
+
+  /**
+   * Fetches YouTube cookies and formats them in Netscape format for yt-dlp.
+   */
+  async function getYoutubeCookies() {
+    return new Promise((resolve) => {
+      chrome.cookies.getAll({ domain: "youtube.com" }, (cookies) => {
+        let netscape = "# Netscape HTTP Cookie File\n";
+        cookies.forEach(c => {
+          const domain = c.domain;
+          const includeSub = domain.startsWith('.') ? "TRUE" : "FALSE";
+          const path = c.path;
+          const secure = c.secure ? "TRUE" : "FALSE";
+          const expiry = c.expirationDate ? Math.floor(c.expirationDate) : 0;
+          const name = c.name;
+          const value = c.value;
+          netscape += `${domain}\t${includeSub}\t${path}\t${secure}\t${expiry}\t${name}\t${value}\n`;
+        });
+        resolve(netscape);
+      });
+    });
+  }
 
   /**
    * Strips playlist/index params so the backend always gets a clean watch URL.
@@ -44,7 +67,17 @@ document.addEventListener('DOMContentLoaded', function() {
       const cleanUrl = cleanYouTubeUrl(tab.url);
 
       try {
-        const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(cleanUrl)}`);
+        const cookies = await getYoutubeCookies();
+        const response = await fetch(`${BACKEND_URL}/info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            url: cleanUrl, 
+            cookies: cookies,
+            sessionId: sessionId 
+          })
+        });
+
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
           const detailMsg = errData.details || errData.error || `Status ${response.status}`;
@@ -143,7 +176,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 `${BACKEND_URL}/download` +
                 `?url=${encodeURIComponent(cleanUrl)}` +
                 `&format=${format.format_id}` +
-                `&filename=${encodeURIComponent(safeFilename)}`;
+                `&filename=${encodeURIComponent(safeFilename)}` +
+                `&sessionId=${sessionId}`;
 
               chrome.downloads.download(
                 { url: downloadEndpoint, filename: safeFilename },
