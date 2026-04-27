@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const title          = document.getElementById('title');
   const downloadOptions = document.querySelector('.download-options');
 
-  const BACKEND_URL = 'http://localhost:4000';
+  const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
   let sessionId = Math.random().toString(36).substring(2, 15);
 
   /**
@@ -20,14 +20,15 @@ document.addEventListener('DOMContentLoaded', function() {
         let netscape = "# Netscape HTTP Cookie File\n";
         cookies.forEach(c => {
           const domain = c.domain;
-          const includeSub = domain.startsWith('.') ? "TRUE" : "FALSE";
+          const includeSub = c.hostOnly ? "FALSE" : "TRUE";
           const path = c.path;
           const secure = c.secure ? "TRUE" : "FALSE";
-          const expiry = c.expirationDate ? Math.floor(c.expirationDate) : 0;
+          const expiry = c.expirationDate ? Math.floor(c.expirationDate) : 2147483647;
           const name = c.name;
           const value = c.value;
           netscape += `${domain}\t${includeSub}\t${path}\t${secure}\t${expiry}\t${name}\t${value}\n`;
         });
+        console.log(`✅ Extracted ${cookies.length} YouTube cookies`);
         resolve(netscape);
       });
     });

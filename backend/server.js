@@ -51,18 +51,23 @@ function cleanupTempFile(filePath) {
  * Returns cookie option (file path) based on sessionId or default cookies.txt
  */
 function getCookieOption(sessionId) {
+    console.log(`[Cookies] Checking options for session: ${sessionId || 'none'}`);
+    
     // 1. Check if we have user-provided cookies for this session
     if (sessionId && SESSION_COOKIES.has(sessionId)) {
         const cookieStr = SESSION_COOKIES.get(sessionId);
+        console.log(`[Cookies] Found session cookies (${cookieStr.length} bytes)`);
         const tempFile = createTempCookieFile(cookieStr);
         return { cookies: tempFile, isTemp: true };
     }
 
     // 2. Fallback to global cookies.txt
     if (fs.existsSync(COOKIES_PATH)) {
+        console.log(`[Cookies] Using global cookies.txt`);
         return { cookies: COOKIES_PATH, isTemp: false };
     }
 
+    console.log(`[Cookies] No cookies found`);
     return {};
 }
 
@@ -160,9 +165,17 @@ app.all('/info', async (req, res) => {
 
     // Store cookies if provided in POST
     if (userCookies && sessionId) {
+        console.log(`[POST /info] Received cookies for session: ${sessionId} (${userCookies.length} bytes)`);
         SESSION_COOKIES.set(sessionId, userCookies);
         // Clear cookies after 30 mins to avoid memory leaks
-        setTimeout(() => SESSION_COOKIES.delete(sessionId), 30 * 60 * 1000);
+        setTimeout(() => {
+            if (SESSION_COOKIES.has(sessionId)) {
+                console.log(`[Session] Expiring cookies for: ${sessionId}`);
+                SESSION_COOKIES.delete(sessionId);
+            }
+        }, 30 * 60 * 1000);
+    } else if (req.method === 'POST') {
+        console.warn(`[POST /info] Missing cookies or sessionId. Body keys: ${Object.keys(req.body)}`);
     }
 
     let cleanUrl, videoId;
@@ -172,10 +185,10 @@ app.all('/info', async (req, res) => {
         return res.status(400).json({ error: e.message });
     }
 
-    const cached = getCached(videoId);
+    const cached = sessionId ? null : getCached(videoId);
     if (cached) return res.json(cached);
 
-    if (inFlight.has(videoId)) {
+    if (!sessionId && inFlight.has(videoId)) {
         try { return res.json(await inFlight.get(videoId)); } 
         catch (e) { return res.status(500).json({ error: 'In-flight fetch failed' }); }
     }
@@ -188,6 +201,7 @@ app.all('/info', async (req, res) => {
         noWarnings: true,
         preferFreeFormats: true,
         noPlaylist: true,
+        forceIpv4: true,
         userAgent: '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"',
         referer: 'https://www.youtube.com',
         extractorArgs: 'youtube:player_client=android_vr,web',
@@ -215,11 +229,11 @@ app.all('/info', async (req, res) => {
             formats
         };
 
-        setCache(videoId, result);
+        if (!sessionId) setCache(videoId, result);
         return result;
     });
 
-    inFlight.set(videoId, fetchPromise);
+    if (!sessionId) inFlight.set(videoId, fetchPromise);
 
     try {
         res.json(await fetchPromise);
@@ -232,7 +246,7 @@ app.all('/info', async (req, res) => {
             stderr: error.stderr || null
         });
     } finally {
-        inFlight.delete(videoId);
+        if (!sessionId) inFlight.delete(videoId);
     }
 });
 
@@ -272,6 +286,7 @@ app.get('/download', async (req, res) => {
         '--no-warnings',
         '--no-playlist',
         '--no-check-certificates',
+        '--force-ipv4',
         '--user-agent', '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"',
         '--referer', 'https://www.youtube.com',
         '--extractor-args', 'youtube:player_client=android_vr,web',
@@ -365,6 +380,7 @@ app.get('/download-url', async (req, res) => {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
+            forceIpv4: true,
             format: formatId || 'bestvideo+bestaudio/best',
             cookies: cookieData.cookies
         });
