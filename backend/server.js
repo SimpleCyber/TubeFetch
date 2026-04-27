@@ -421,6 +421,60 @@ app.get('/download-url', async (req, res) => {
         res.status(500).json({ error: 'Failed to get download URL', details: error.message });
     }
 });
+app.get('/privacy', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Privacy Policy - TubeFetch</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f9f9f9; }
+                .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+                h1 { color: #ff0000; margin-top: 0; }
+                h2 { color: #1a1a1a; margin-top: 30px; }
+                p { margin-bottom: 20px; }
+                .footer { margin-top: 40px; font-size: 0.9em; color: #666; text-align: center; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Privacy Policy for TubeFetch</h1>
+                <p>Last Updated: April 27, 2026</p>
+                
+                <p>TubeFetch ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use the TubeFetch Chrome extension and our associated backend services.</p>
+
+                <h2>1. Information We Collect</h2>
+                <p><strong>Video URLs:</strong> When you use the extension, we collect the URL of the YouTube video you are viewing to retrieve its metadata and available download formats.</p>
+                <p><strong>Cookies:</strong> To provide access to high-quality formats and ensure successful downloads, the extension securely passes YouTube authentication cookies from your browser to our backend. These cookies are used transiently and are not stored permanently.</p>
+                <p><strong>Session Identifiers:</strong> We use random, non-personally identifiable session IDs to manage the temporary cache of video information during your active session.</p>
+
+                <h2>2. How We Use Your Information</h2>
+                <p>We use the collected information solely to:</p>
+                <ul>
+                    <li>Retrieve video metadata (title, thumbnail, available resolutions).</li>
+                    <li>Facilitate the streaming and downloading of video files to your device.</li>
+                    <li>Improve the performance and reliability of our service.</li>
+                </ul>
+
+                <h2>3. Data Storage and Security</h2>
+                <p>We do not store your video history, personal information, or cookies on our servers. All video processing is performed in real-time, and cached metadata is periodically cleared. We implement standard security measures to protect data during transmission.</p>
+
+                <h2>4. Data Sharing</h2>
+                <p>We do not sell, trade, or otherwise transfer your information to third parties. We do not use trackers or include third-party advertisements in our extension.</p>
+
+                <h2>5. Changes to This Policy</h2>
+                <p>We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.</p>
+
+                <div class="footer">
+                    &copy; 2026 TubeFetch. All rights reserved.
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+});
 
 // ── 404 Catch-all (for debugging) ──────────────────────────────────────────
 app.use((req, res) => {
