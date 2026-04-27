@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const title          = document.getElementById('title');
   const downloadOptions = document.querySelector('.download-options');
 
-  const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+  const BACKEND_URL = 'http://localhost:4000';
   let sessionId = Math.random().toString(36).substring(2, 15);
 
   /**
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         const cookies = await getYoutubeCookies();
-        const response = await fetch(`${BACKEND_URL}/info`, {
+        let response = await fetch(`${BACKEND_URL}/info`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -77,6 +77,12 @@ document.addEventListener('DOMContentLoaded', function() {
             sessionId: sessionId 
           })
         });
+
+        // Fallback for older backend versions that only support GET
+        if (response.status === 404 || response.status === 405) {
+          console.warn('POST /info not found, falling back to GET...');
+          response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(cleanUrl)}`);
+        }
 
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));

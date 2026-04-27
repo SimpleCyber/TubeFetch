@@ -116,7 +116,7 @@ app.get('/', (req, res) => {
                 method: "GET",
                 params: { url: "YouTube video URL" },
                 description: "Returns video title, thumbnail, duration, and available formats with height/quality metadata.",
-                example: `https://tubefetch-us1e.onrender.com//info?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ`
+                example: `https://tubefetch-us1e.onrender.com/info?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ`
             },
             {
                 path: "/download",
@@ -127,14 +127,14 @@ app.get('/', (req, res) => {
                     filename: "Optional custom filename for the download"
                 },
                 description: "Streams the video/audio directly to the browser. Automatically handles high-quality merging (video+audio) if needed.",
-                example: `https://tubefetch-us1e.onrender.com//download?url=...&format=137&filename=cool_video.mp4`
+                example: `https://tubefetch-us1e.onrender.com/download?url=...&format=137&filename=cool_video.mp4`
             },
             {
                 path: "/download-url",
                 method: "GET",
                 params: { url: "YouTube video URL", format: "format_id" },
                 description: "Returns the direct YouTube CDN URL (for debugging purposes).",
-                example: `https://tubefetch-us1e.onrender.com//download-url?url=...&format=18`
+                example: `https://tubefetch-us1e.onrender.com/download-url?url=...&format=18`
             }
         ],
         usage: {
@@ -188,10 +188,8 @@ app.all('/info', async (req, res) => {
         noWarnings: true,
         preferFreeFormats: true,
         noPlaylist: true,
-        addHeader: [
-            'referer:youtube.com',
-            'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        ],
+        userAgent: '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"',
+        referer: 'https://www.youtube.com',
         extractorArgs: 'youtube:player_client=android_vr,web',
         cookies: cookieData.cookies
     }).then(output => {
@@ -274,7 +272,8 @@ app.get('/download', async (req, res) => {
         '--no-warnings',
         '--no-playlist',
         '--no-check-certificates',
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        '--user-agent', '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"',
+        '--referer', 'https://www.youtube.com',
         '--extractor-args', 'youtube:player_client=android_vr,web',
         '-o', '-', 
     ];
