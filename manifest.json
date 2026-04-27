@@ -12,7 +12,8 @@
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://*.ytimg.com/*",
-    "http://localhost:4000/*"
+    "http://localhost:4000/*",
+    "https://tubefetch-us1e.onrender.com/*"
   ],
   "action": {
     "default_popup": "popup.html",

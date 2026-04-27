@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const title          = document.getElementById('title');
   const downloadOptions = document.querySelector('.download-options');
 
-  const BACKEND_URL = 'http://localhost:4000';
+  const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
 
   /**
    * Strips playlist/index params so the backend always gets a clean watch URL.
@@ -45,7 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(cleanUrl)}`);
-        if (!response.ok) throw new Error(`Server responded ${response.status}`);
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const detailMsg = errData.details || errData.error || `Status ${response.status}`;
+          throw new Error(detailMsg);
+        }
 
         const info = await response.json();
         if (info.error) throw new Error(info.error);
@@ -166,9 +170,21 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (err) {
         loading.style.display = 'none';
         error.style.display = 'flex';
+        
+        let displayError = err.message;
+        
+        // Try to extract more details if it's a server error
+        if (err.message.includes('Server responded')) {
+           try {
+             // In a real scenario we'd need to catch the response object earlier to call .json()
+             // But for now, we'll just suggest checking the backend logs or provide a more helpful hint.
+             displayError = `Server Error: ${err.message}. Check backend logs for yt-dlp issues.`;
+           } catch(e) {}
+        }
+        
         errorMessage.textContent = err.message.includes('fetch')
-          ? 'Cannot reach backend. Is the server running on port 4000?'
-          : `Error: ${err.message}`;
+          ? 'Cannot reach backend. Is the server running?'
+          : displayError;
         console.error(err);
       }
     } else {

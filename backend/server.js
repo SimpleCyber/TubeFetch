@@ -126,7 +126,11 @@ app.get('/info', async (req, res) => {
         noWarnings: true,
         preferFreeFormats: true,
         noPlaylist: true,
-        addHeader: 'referer:youtube.com',
+        addHeader: [
+            'referer:youtube.com',
+            'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        ],
+        extractorArgs: 'youtube:player_client=android_vr,web'
     }).then(output => {
         const formats = output.formats
             .filter(f => f.vcodec !== 'none' || f.acodec !== 'none')
@@ -158,9 +162,27 @@ app.get('/info', async (req, res) => {
     try {
         res.json(await fetchPromise);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch video information', details: error.message });
+        console.error('[/info] Error:', error.stderr || error.message);
+        res.status(500).json({ 
+            error: 'Failed to fetch video information', 
+            details: error.message,
+            stderr: error.stderr || null
+        });
     } finally {
         inFlight.delete(videoId);
+    }
+});
+
+// ── GET /health ──────────────────────────────────────────────────────────────
+
+app.get('/health', async (req, res) => {
+    try {
+        const { constants } = require('youtube-dl-exec');
+        const { execSync } = require('child_process');
+        const version = execSync(`"${constants.YOUTUBE_DL_PATH}" --version`).toString().trim();
+        res.json({ status: 'ok', ytDlpVersion: version, platform: process.platform });
+    } catch (e) {
+        res.status(500).json({ status: 'error', error: e.message, stderr: e.stderr?.toString() });
     }
 });
 
@@ -187,6 +209,8 @@ app.get('/download', async (req, res) => {
         '--no-warnings',
         '--no-playlist',
         '--no-check-certificates',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        '--extractor-args', 'youtube:player_client=android_vr,web',
         '-o', '-', 
     ];
 
@@ -229,7 +253,11 @@ app.get('/download', async (req, res) => {
     });
 
     ytProc.on('error', err => {
-        if (!res.headersSent) res.status(500).json({ error: err.message });
+        console.error('[/download] spawn error:', err.message);
+        if (!res.headersSent) res.status(500).json({ 
+            error: 'Streaming process failed', 
+            details: err.message 
+        });
     });
 
     ytProc.on('close', () => {
