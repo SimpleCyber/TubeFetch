@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (lower.includes('rumble.com')) return { name: 'Rumble', color: '#85c742', domains: ['.rumble.com'] };
     if (lower.includes('bitchute.com')) return { name: 'BitChute', color: '#c31e21', domains: ['.bitchute.com'] };
     if (lower.includes('mixcloud.com')) return { name: 'Mixcloud', color: '#52aad8', domains: ['.mixcloud.com'] };
+    if (lower.includes('linkedin.com')) return { name: 'LinkedIn', color: '#0a66c2', domains: ['.linkedin.com'] };
     return { name: 'Universal', color: '#6366f1', domains: [] };
   }
 

@@ -243,9 +243,6 @@ app.all('/info', async (req, res) => {
         noCacheDir: true,
         jsRuntimes: 'node',
         referer: `${urlObj.protocol}//${urlObj.hostname}/`,
-        addHeader: [
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-        ],
         extractorArgs: 'youtube:player_client=android,web',
         cookies: cookieData.cookies,
         cookiesFromBrowser: cookieData.cookiesFromBrowser
@@ -422,7 +419,6 @@ app.get('/download', async (req, res) => {
         '--no-cache-dir',
         '--js-runtimes', 'node',
         '--referer', `${urlObj.protocol}//${urlObj.hostname}/`,
-        '--add-header', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
         '-o', '-', 
     ];
 

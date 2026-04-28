@@ -1,6 +1,7 @@
 
 // background.js - OmniFetch Service Worker
-const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+// const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+const BACKEND_URL = 'http://localhost:4000';
 
 /**
  * Configure Side Panel behavior
