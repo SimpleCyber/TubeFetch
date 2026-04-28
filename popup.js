@@ -78,20 +78,42 @@ document.addEventListener('DOMContentLoaded', function() {
    * Strips playlist/index params so the backend always gets a clean watch URL.
    * Avoids Windows cmd.exe treating & as a command separator inside yt-dlp calls.
    */
-  function cleanYouTubeUrl(rawUrl) {
+  /**
+   * Cleans and trims URLs based on the platform.
+   * Strips playlist/index params so the backend always gets a clean watch URL.
+   * Avoids Windows cmd.exe treating & as a command separator inside yt-dlp calls.
+   */
+  function cleanUrl(rawUrl) {
+    if (!rawUrl) return rawUrl;
     try {
       const parsed = new URL(rawUrl);
+      const lowerHost = parsed.hostname.toLowerCase();
+
+      // Vimeo: Remove all query params
+      if (lowerHost.includes('vimeo.com')) {
+        return `${parsed.origin}${parsed.pathname}`;
+      }
 
       // Handle youtu.be short links
-      if (parsed.hostname === 'youtu.be') {
+      if (lowerHost === 'youtu.be') {
         const videoId = parsed.pathname.slice(1).split('/')[0];
         return `https://www.youtube.com/watch?v=${videoId}`;
       }
 
       // Handle youtube.com/watch?v=...
-      const videoId = parsed.searchParams.get('v');
-      if (!videoId) return rawUrl; // not a video URL — pass through
-      return `https://www.youtube.com/watch?v=${videoId}`;
+      if (lowerHost.includes('youtube.com') && parsed.pathname === '/watch') {
+        const videoId = parsed.searchParams.get('v');
+        if (videoId) {
+          return `https://www.youtube.com/watch?v=${videoId}`;
+        }
+      }
+      
+      // YouTube Shorts: Clean path
+      if (lowerHost.includes('youtube.com') && parsed.pathname.includes('/shorts/')) {
+        return `${parsed.origin}${parsed.pathname}`;
+      }
+
+      return rawUrl;
     } catch {
       return rawUrl;
     }
@@ -100,12 +122,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // Query the active tab to get the YouTube video URL
   chrome.tabs.query({active: true, currentWindow: true}, async function(tabs) {
     const tab = tabs[0];
-    if (tab.url && (tab.url.includes('youtube.com/watch') || tab.url.includes('youtu.be/'))) {
+    if (tab.url && (tab.url.includes('youtube.com/watch') || tab.url.includes('youtu.be/') || tab.url.includes('vimeo.com/'))) {
       loading.style.display = 'flex';
       videoInfo.style.display = 'none';
       error.style.display = 'none';
 
-      const cleanUrl = cleanYouTubeUrl(tab.url);
+      const cleanedUrl = cleanUrl(tab.url);
 
       try {
         const cookies = await getYoutubeCookies();
@@ -120,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            url: cleanUrl, 
+            url: cleanedUrl, 
             cookies: cookies,
             sessionId: sessionId 
           })
@@ -129,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Fallback for older backend versions that only support GET
         if (response.status === 404 || response.status === 405) {
           console.warn('POST /info not found, falling back to GET...');
-          response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(cleanUrl)}`);
+          response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(cleanedUrl)}`);
         }
 
         if (!response.ok) {
@@ -241,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
               const downloadEndpoint =
                 `${BACKEND_URL}/download` +
-                `?url=${encodeURIComponent(cleanUrl)}` +
+                `?url=${encodeURIComponent(cleanedUrl)}` +
                 `&format=${format.format_id}` +
                 `&filename=${encodeURIComponent(safeFilename)}` +
                 `&sessionId=${sessionId}`;

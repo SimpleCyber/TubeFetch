@@ -444,11 +444,14 @@ app.get('/download', async (req, res) => {
     } else {
         args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best');
     }
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ytdl-'));
+    args.push('--paths', `home:${tmpDir}`);
+    args.push('--paths', `temp:${tmpDir}`);
     args.push(cleanUrl);
 
     console.log(`[/download] Executing: yt-dlp ${args.join(' ')}`);
 
-    const ytProc = spawn(constants.YOUTUBE_DL_PATH, args);
+    const ytProc = spawn(constants.YOUTUBE_DL_PATH, args, { cwd: tmpDir });
     let headersSent = false;
 
     ytProc.stdout.on('data', chunk => {
@@ -486,6 +489,16 @@ app.get('/download', async (req, res) => {
     ytProc.on('close', () => {
         if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
         if (!res.writableEnded) res.end();
+        
+        // Cleanup temp working directory
+        try {
+            if (fs.existsSync(tmpDir)) {
+                fs.rmSync(tmpDir, { recursive: true, force: true });
+                console.log(`[/download] Cleaned up temp dir: ${tmpDir}`);
+            }
+        } catch (e) {
+            console.error('[/download] Failed to cleanup temp dir:', e.message);
+        }
     });
 
     req.on('close', () => {

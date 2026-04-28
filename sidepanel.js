@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (lower.includes('instagram.com')) return { name: 'Instagram', color: '#e1306c', domains: ['.instagram.com'] };
     if (lower.includes('pinterest.com') || lower.includes('pinimg.com')) return { name: 'Pinterest', color: '#bd081c', domains: ['.pinterest.com'] };
     if (lower.includes('facebook.com') || lower.includes('fb.watch')) return { name: 'Facebook', color: '#1877f2', domains: ['.facebook.com'] };
-    if (lower.includes('twitter.com')) return { name: 'Twitter', color: '#000000', domains: ['.twitter.com'] };
+    if (lower.includes('twitter.com')|| lower.includes('x.com')) return { name: 'Twitter', color: '#000000', domains: ['.twitter.com'] };
     if (lower.includes('vimeo.com')) return { name: 'Vimeo', color: '#1ab7ea', domains: ['.vimeo.com'] };
     if (lower.includes('twitch.tv')) return { name: 'Twitch', color: '#9146ff', domains: ['.twitch.tv'] };
     if (lower.includes('reddit.com')) return { name: 'Reddit', color: '#ff4500', domains: ['.reddit.com'] };
@@ -65,6 +65,47 @@ document.addEventListener('DOMContentLoaded', function() {
     if (lower.includes('mixcloud.com')) return { name: 'Mixcloud', color: '#52aad8', domains: ['.mixcloud.com'] };
     if (lower.includes('linkedin.com')) return { name: 'LinkedIn', color: '#0a66c2', domains: ['.linkedin.com'] };
     return { name: 'Universal', color: '#6366f1', domains: [] };
+  }
+
+  /**
+   * Cleans and trims URLs based on the platform
+   */
+  function cleanUrl(rawUrl) {
+    if (!rawUrl) return rawUrl;
+    try {
+      const parsed = new URL(rawUrl);
+      const lowerHost = parsed.hostname.toLowerCase();
+      
+      // Vimeo: Remove all query params
+      if (lowerHost.includes('vimeo.com')) {
+        return `${parsed.origin}${parsed.pathname}`;
+      }
+      
+      // YouTube: Keep only 'v' parameter
+      if (lowerHost.includes('youtube.com') && parsed.pathname === '/watch') {
+        const videoId = parsed.searchParams.get('v');
+        if (videoId) {
+          return `${parsed.origin}/watch?v=${videoId}`;
+        }
+      }
+      
+      // YouTube Shorts or youtu.be: Clean path (remove any ?t= or other params)
+      if (lowerHost.includes('youtu.be') || (lowerHost.includes('youtube.com') && parsed.pathname.includes('/shorts/'))) {
+        return `${parsed.origin}${parsed.pathname}`;
+      }
+      
+      // Facebook, Instagram, Twitter, etc: Often safe to remove query params for the main video URL
+      if (lowerHost.includes('instagram.com') || 
+          lowerHost.includes('facebook.com') || 
+          lowerHost.includes('twitter.com') || 
+          lowerHost.includes('x.com')) {
+        return `${parsed.origin}${parsed.pathname}`;
+      }
+      
+      return rawUrl;
+    } catch (e) {
+      return rawUrl;
+    }
   }
 
   /**
@@ -92,6 +133,8 @@ document.addEventListener('DOMContentLoaded', function() {
    */
   async function fetchVideoInfo(url) {
     if (!url) return;
+    
+    url = cleanUrl(url);
 
     // UI Feedback
     elements.emptyState.style.display = 'none';
@@ -231,8 +274,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Listen for manual fetch
   elements.fetchBtn.addEventListener('click', () => {
-    const url = elements.urlInput.value.trim();
-    if (url) fetchVideoInfo(url);
+    let url = elements.urlInput.value.trim();
+    if (url) {
+      url = cleanUrl(url);
+      elements.urlInput.value = url;
+      fetchVideoInfo(url);
+    }
   });
 
   elements.urlInput.addEventListener('keypress', (e) => {
@@ -243,10 +290,11 @@ document.addEventListener('DOMContentLoaded', function() {
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.url) {
       // Only auto-fetch if the side panel is visible and it's a known platform
-      const platform = detectPlatform(changeInfo.url);
+      const cleanedUrl = cleanUrl(changeInfo.url);
+      const platform = detectPlatform(cleanedUrl);
       if (platform && platform.name !== 'Universal') {
-        fetchVideoInfo(changeInfo.url);
-        elements.urlInput.value = changeInfo.url;
+        fetchVideoInfo(cleanedUrl);
+        elements.urlInput.value = cleanedUrl;
       }
     }
   });
@@ -254,10 +302,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initial check
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.url) {
-      const platform = detectPlatform(tabs[0].url);
+      const cleanedUrl = cleanUrl(tabs[0].url);
+      const platform = detectPlatform(cleanedUrl);
       if (platform && platform.name !== 'Universal') {
-        fetchVideoInfo(tabs[0].url);
-        elements.urlInput.value = tabs[0].url;
+        fetchVideoInfo(cleanedUrl);
+        elements.urlInput.value = cleanedUrl;
       }
     }
   });
