@@ -78,6 +78,30 @@ function getCookieOption(sessionId) {
     return {};
 }
 
+/**
+ * Parses Netscape cookie file content into a 'Cookie' header string.
+ */
+function parseNetscapeCookies(filePath) {
+    try {
+        if (!fs.existsSync(filePath)) return '';
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n');
+        const cookies = [];
+        
+        for (const line of lines) {
+            if (!line.trim() || line.startsWith('#')) continue;
+            const parts = line.split('\t');
+            if (parts.length >= 7) {
+                cookies.push(`${parts[5]}=${parts[6].trim()}`);
+            }
+        }
+        return cookies.join('; ');
+    } catch (e) {
+        console.error('Cookie parsing failed:', e.message);
+        return '';
+    }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getCached(key) {
@@ -95,23 +119,29 @@ function setCache(key, data) {
 }
 
 /**
- * Sanitizes a YouTube URL to a clean watch URL with only the video ID.
+ * Sanitizes URLs. Performs specific cleaning for YouTube, otherwise returns as is.
  */
-function sanitizeYouTubeUrl(rawUrl) {
+function sanitizeUrl(rawUrl) {
     try {
         const parsed = new URL(rawUrl);
-        let videoId = '';
-
-        if (parsed.hostname === 'youtu.be') {
-            videoId = parsed.pathname.slice(1).split('/')[0];
-        } else {
-            videoId = parsed.searchParams.get('v');
+        
+        // YouTube specific sanitization
+        if (parsed.hostname.includes('youtube.com') || parsed.hostname === 'youtu.be') {
+            let videoId = '';
+            if (parsed.hostname === 'youtu.be') {
+                videoId = parsed.pathname.slice(1).split('/')[0];
+            } else {
+                videoId = parsed.searchParams.get('v');
+            }
+            if (videoId) {
+                return { cleanUrl: `https://www.youtube.com/watch?v=${videoId}`, id: videoId };
+            }
         }
 
-        if (!videoId) throw new Error('No video ID found in URL');
-        return { cleanUrl: `https://www.youtube.com/watch?v=${videoId}`, videoId };
+        // Default: return as is
+        return { cleanUrl: rawUrl, id: rawUrl };
     } catch (e) {
-        throw new Error(`Invalid YouTube URL: ${e.message}`);
+        throw new Error(`Invalid URL: ${e.message}`);
     }
 }
 
@@ -119,14 +149,14 @@ function sanitizeYouTubeUrl(rawUrl) {
 
 app.get('/', (req, res) => {
     const documentation = {
-        name: "TubeFetch Backend API",
-        description: "A high-performance YouTube metadata and streaming service powered by yt-dlp.",
-        version: "1.1.0",
+        name: "OmniFetch Backend API",
+        description: "A high-performance universal media metadata and streaming service powered by yt-dlp.",
+        version: "1.2.0",
         endpoints: [
             {
                 path: "/info",
                 method: "GET",
-                params: { url: "YouTube video URL" },
+                params: { url: "Media URL (YouTube, Instagram, Pinterest, etc.)" },
                 description: "Returns video title, thumbnail, duration, and available formats with height/quality metadata.",
                 example: `https://tubefetch-us1e.onrender.com/info?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ`
             },
@@ -185,23 +215,24 @@ app.all('/info', async (req, res) => {
         console.warn(`[POST /info] Missing cookies or sessionId. Body keys: ${Object.keys(req.body)}`);
     }
 
-    let cleanUrl, videoId;
+    let cleanUrl, id;
     try {
-        ({ cleanUrl, videoId } = sanitizeYouTubeUrl(rawUrl));
+        ({ cleanUrl, id } = sanitizeUrl(rawUrl));
     } catch (e) {
         return res.status(400).json({ error: e.message });
     }
 
-    const cached = sessionId ? null : getCached(videoId);
+    const cached = sessionId ? null : getCached(id);
     if (cached) return res.json(cached);
 
-    if (!sessionId && inFlight.has(videoId)) {
-        try { return res.json(await inFlight.get(videoId)); } 
+    if (!sessionId && inFlight.has(id)) {
+        try { return res.json(await inFlight.get(id)); } 
         catch (e) { return res.status(500).json({ error: 'In-flight fetch failed' }); }
     }
 
     const cookieData = getCookieOption(sessionId);
     
+    const urlObj = new URL(cleanUrl);
     const fetchPromise = youtubedl(cleanUrl, {
         dumpSingleJson: true,
         noCheckCertificates: true,
@@ -211,25 +242,76 @@ app.all('/info', async (req, res) => {
         forceIpv4: true,
         noCacheDir: true,
         jsRuntimes: 'node',
-        referer: 'https://www.youtube.com',
+        referer: `${urlObj.protocol}//${urlObj.hostname}/`,
+        addHeader: [
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+        ],
         extractorArgs: 'youtube:player_client=android,web',
         cookies: cookieData.cookies,
         cookiesFromBrowser: cookieData.cookiesFromBrowser
     }).then(output => {
         if (cookieData.isTemp) cleanupTempFile(cookieData.cookies);
-        const formats = output.formats
-            .filter(f => f.vcodec !== 'none' || f.acodec !== 'none')
+        let formats = output.formats
+            .filter(f => {
+                // Keep only valid media formats
+                const isMedia = f.vcodec !== 'none' || f.acodec !== 'none';
+                if (!isMedia) return false;
+                
+                // Exclude extremely low quality (less than 360p) unless it's the only option
+                // and ignore 'story' or 'manifest' only formats that often return JSON/errors
+                if (f.height && f.height < 360 && output.formats.some(fmt => fmt.height >= 360)) return false;
+                if (f.format_note && f.format_note.toLowerCase().includes('story')) return false;
+                
+                return true;
+            })
             .map(f => ({
                 format_id: f.format_id,
                 extension: f.ext,
-                quality:   f.format_note || f.resolution || 'unknown',
+                quality:   f.format_note || f.resolution || (f.height ? `${f.height}p` : 'unknown'),
                 height:    f.height || 0,
-                has_audio: f.acodec !== 'none',
-                has_video: f.vcodec !== 'none',
+                has_audio: f.acodec !== 'none' && f.acodec !== 'null',
+                has_video: f.vcodec !== 'none' && f.vcodec !== 'null',
+                is_image:  false,
                 filesize:  f.filesize || f.filesize_approx || null,
                 url:       f.url
-            }))
-            .sort((a, b) => (b.height || 0) - (a.height || 0) || (b.filesize || 0) - (a.filesize || 0));
+            }));
+
+        // If no video/audio formats, or if it's a known image platform, add image formats
+        const isImagePlatform = cleanUrl.includes('instagram.com/p/') || cleanUrl.includes('pinterest.com/pin/') || cleanUrl.includes('pinimg.com');
+        
+        if (formats.length === 0 || isImagePlatform) {
+            // Add thumbnails as image formats if they look high-res or if it's the only option
+            const images = (output.thumbnails || [])
+                .filter(t => t.url && (t.width > 500 || t.id === 'og:image'))
+                .map((t, i) => ({
+                    format_id: `img_${i}`,
+                    extension: t.url.includes('.webp') ? 'webp' : 'jpg',
+                    quality:   t.width ? `${t.width}px Width` : 'High Res',
+                    height:    t.height || 0,
+                    has_audio: false,
+                    has_video: false,
+                    is_image:  true,
+                    url:       t.url
+                }));
+            
+            // Also check the main 'url' field if it's an image
+            if (output.url && (output.url.includes('.jpg') || output.url.includes('.png') || output.url.includes('.webp'))) {
+                 images.push({
+                    format_id: 'img_main',
+                    extension: output.ext || 'jpg',
+                    quality: 'Original Image',
+                    height: output.height || 0,
+                    has_audio: false,
+                    has_video: false,
+                    is_image: true,
+                    url: output.url
+                 });
+            }
+            
+            formats = [...formats, ...images];
+        }
+
+        formats.sort((a, b) => (b.height || 0) - (a.height || 0) || (b.filesize || 0) - (a.filesize || 0));
 
         const result = {
             title:     output.title,
@@ -238,11 +320,11 @@ app.all('/info', async (req, res) => {
             formats
         };
 
-        if (!sessionId) setCache(videoId, result);
+        if (!sessionId) setCache(id, result);
         return result;
     });
 
-    if (!sessionId) inFlight.set(videoId, fetchPromise);
+    if (!sessionId) inFlight.set(id, fetchPromise);
 
     try {
         res.json(await fetchPromise);
@@ -255,7 +337,7 @@ app.all('/info', async (req, res) => {
             stderr: error.stderr || null
         });
     } finally {
-        if (!sessionId) inFlight.delete(videoId);
+        if (!sessionId) inFlight.delete(id);
     }
 });
 
@@ -279,18 +361,59 @@ app.get('/download', async (req, res) => {
 
     if (!rawUrl) return res.status(400).json({ error: 'URL is required' });
 
-    let cleanUrl, videoId;
+    let cleanUrl, id;
     try {
-        ({ cleanUrl, videoId } = sanitizeYouTubeUrl(rawUrl));
+        ({ cleanUrl, id } = sanitizeUrl(rawUrl));
     } catch (e) {
         return res.status(400).json({ error: e.message });
     }
 
     let ext = 'mp4';
-    const cached = getCached(videoId);
+    const cached = getCached(id);
     const fmt = cached?.formats.find(f => f.format_id === formatId);
     if (fmt) ext = fmt.extension;
 
+    const cookieData = getCookieOption(sessionId);
+    const cleanFormatId = formatId ? String(formatId).trim() : null;
+
+    // ── Handle Image Downloads ───────────────────────────────────────────────
+    if (cleanFormatId && cleanFormatId.startsWith('img_')) {
+        let imageUrl = '';
+        if (fmt) {
+            imageUrl = fmt.url;
+        } else {
+            return res.status(404).json({ error: 'Image format not found in cache. Please refresh info.' });
+        }
+
+        try {
+            console.log(`[/download] Fetching image: ${imageUrl}`);
+            const headers = { 
+                'Referer': `${new URL(cleanUrl).protocol}//${new URL(cleanUrl).hostname}`,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+            };
+            
+            if (cookieData.cookies) {
+                const cookieHeader = parseNetscapeCookies(cookieData.cookies);
+                if (cookieHeader) headers['Cookie'] = cookieHeader;
+            }
+            
+            const imgRes = await fetch(imageUrl, { headers });
+            if (!imgRes.ok) throw new Error(`Failed to fetch image: ${imgRes.statusText} (${imgRes.status})`);
+            
+            const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+            res.setHeader('Content-Type', contentType);
+            const safeName = filename.replace(/[^\x20-\x7E]/g, '').replace(/"/g, "'");
+            const encodedName = encodeURIComponent(filename);
+            res.setHeader('Content-Disposition', `attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`);
+            
+            const buffer = await imgRes.arrayBuffer();
+            return res.send(Buffer.from(buffer));
+        } catch (e) {
+            return res.status(500).json({ error: 'Failed to download image', details: e.message });
+        }
+    }
+
+    const urlObj = new URL(cleanUrl);
     const args = [
         '--no-warnings',
         '--no-playlist',
@@ -298,31 +421,28 @@ app.get('/download', async (req, res) => {
         '--force-ipv4',
         '--no-cache-dir',
         '--js-runtimes', 'node',
-        '--referer', 'https://www.youtube.com',
-        '--extractor-args', 'youtube:player_client=android,web',
+        '--referer', `${urlObj.protocol}//${urlObj.hostname}/`,
+        '--add-header', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
         '-o', '-', 
     ];
 
-    const cookieData = getCookieOption(sessionId);
+    if (urlObj.hostname.includes('youtube.com') || urlObj.hostname === 'youtu.be') {
+        args.push('--extractor-args', 'youtube:player_client=android,web');
+    }
     if (cookieData.cookies) {
         args.push('--cookies', cookieData.cookies);
     } else if (cookieData.cookiesFromBrowser) {
         args.push('--cookies-from-browser', cookieData.cookiesFromBrowser);
     }
 
-    const cleanFormatId = formatId ? String(formatId).trim() : null;
-
     if (cleanFormatId) {
         if (fmt) {
             if (fmt.has_video && !fmt.has_audio) {
-                // Video only format? Merge with best audio, with robust fallbacks
                 args.push('-f', `${cleanFormatId}+bestaudio/bestvideo+bestaudio/best/${cleanFormatId}/best`);
             } else {
-                // Already has audio or unknown? Use it directly but with best fallback
                 args.push('-f', `${cleanFormatId}/bestvideo+bestaudio/best`);
             }
         } else {
-            // No cache? Try the formatId directly but with robust fallbacks
             args.push('-f', `${cleanFormatId}+bestaudio/bestvideo+bestaudio/best/${cleanFormatId}/best`);
         }
     } else {
@@ -383,14 +503,14 @@ app.get('/download-url', async (req, res) => {
     const { url: rawUrl, format: formatId, sessionId } = req.query;
     if (!rawUrl) return res.status(400).json({ error: 'URL is required' });
 
-    let cleanUrl, videoId;
+    let cleanUrl, id;
     try {
-        ({ cleanUrl, videoId } = sanitizeYouTubeUrl(rawUrl));
+        ({ cleanUrl, id } = sanitizeUrl(rawUrl));
     } catch (e) {
         return res.status(400).json({ error: e.message });
     }
 
-    const cached = getCached(videoId);
+    const cached = getCached(id);
     if (cached && formatId) {
         const fmt = cached.formats.find(f => f.format_id === formatId);
         if (fmt?.url) return res.json({ url: fmt.url, filename: `${cached.title}.${fmt.extension}` });
@@ -483,5 +603,5 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`✅ TubeFetch backend running on http://localhost:${PORT}`);
+    console.log(`✅ OmniFetch backend running on http://localhost:${PORT}`);
 });

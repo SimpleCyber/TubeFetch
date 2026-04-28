@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "TubeFetch - YouTube Video Downloader",
-  "version": "1.0",
-  "description": "Download YouTube videos in different resolutions",
+  "name": "OmniFetch - Universal Media Downloader",
+  "version": "1.1",
+  "description": "Download and manage media from Instagram, Pinterest, and other social platforms.",
   "permissions": [
+    "sidePanel",
     "activeTab",
     "downloads",
     "storage",
@@ -13,20 +14,31 @@
   "background": {
     "service_worker": "background.js"
   },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "host_permissions": [
     "https://*.youtube.com/*",
     "https://*.google.com/*",
     "https://*.ytimg.com/*",
+    "https://*.instagram.com/*",
+    "https://*.pinterest.com/*",
+    "https://*.pinimg.com/*",
+    "https://*.facebook.com/*",
+    "https://*.x.com/*",
+    "https://*.twitter.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.vimeo.com/*",
+    "https://*.tiktok.com/*",
+    "https://*.twitch.tv/*",
+    "https://*.reddit.com/*",
+    "https://*.soundcloud.com/*",
+    "https://*.dailymotion.com/*",
     "http://localhost:4000/*",
     "https://tubefetch-us1e.onrender.com/*"
   ],
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
+    "default_title": "Open OmniFetch Side Panel"
   },
   "icons": {
     "16": "icons/icon16.png",
@@ -35,7 +47,16 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://www.instagram.com/*",
+        "https://www.pinterest.com/*",
+        "https://www.facebook.com/*",
+        "https://x.com/*",
+        "https://twitter.com/*",
+        "https://www.linkedin.com/*",
+        "https://vimeo.com/*"
+      ],
       "js": ["content.js"]
     }
   ]
