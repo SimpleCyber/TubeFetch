@@ -41,9 +41,10 @@ async function getPlatformCookies(url) {
     if (url.includes('vimeo.com')) domains.push(".vimeo.com");
     if (url.includes('tiktok.com')) domains.push(".tiktok.com");
     if (url.includes('twitch.tv')) domains.push(".twitch.tv");
-    if (url.includes('reddit.com')) domains.push(".reddit.com");
-    if (url.includes('soundcloud.com')) domains.push(".soundcloud.com");
     if (url.includes('dailymotion.com')) domains.push(".dailymotion.com");
+    if (url.includes('rumble.com')) domains.push(".rumble.com");
+    if (url.includes('bitchute.com')) domains.push(".bitchute.com");
+    if (url.includes('mixcloud.com')) domains.push(".mixcloud.com");
 
     let allCookies = [];
     for (const domain of domains) {
