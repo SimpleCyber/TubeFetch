@@ -26,7 +26,7 @@
     "https://*.pinimg.com/*",
     "https://*.facebook.com/*",
     "https://*.twitter.com/*",
-    "https://*.linkedin.com/*",
+    "https://*.loom.com/*",
     "https://*.vimeo.com/*",
     "https://*.twitch.tv/*",
     "https://*.reddit.com/*",
@@ -55,7 +55,7 @@
         "https://www.facebook.com/*",
         "https://x.com/*",
         "https://twitter.com/*",
-        "https://www.linkedin.com/*",
+        "https://www.loom.com/*",
         "https://vimeo.com/*"
       ],
       "js": ["content.js"]

@@ -1,7 +1,7 @@
 
 // background.js - OmniFetch Service Worker
-// const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
-const BACKEND_URL = 'http://localhost:4000';
+const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+// const BACKEND_URL = 'http://localhost:4000';
 
 /**
  * Configure Side Panel behavior
@@ -38,7 +38,7 @@ async function getPlatformCookies(url) {
         domains.push(".x.com");
         domains.push(".twitter.com");
     }
-    if (url.includes('linkedin.com')) domains.push(".linkedin.com");
+    if (url.includes('loom.com')) domains.push(".loom.com");
     if (url.includes('vimeo.com')) domains.push(".vimeo.com");
     if (url.includes('tiktok.com')) domains.push(".tiktok.com");
     if (url.includes('twitch.tv')) domains.push(".twitch.tv");

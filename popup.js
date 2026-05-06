@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const title          = document.getElementById('title');
   const downloadOptions = document.querySelector('.download-options');
 
-  // const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
-  const BACKEND_URL = 'http://localhost:4000';
+  const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+  // const BACKEND_URL = 'http://localhost:4000';
 
   // Retrieve or generate sessionId from storage
   let sessionId;

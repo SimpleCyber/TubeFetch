@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
     themeToggle: document.getElementById('theme-toggle')
   };
 
-  // const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
-  const BACKEND_URL = 'http://localhost:4000';
+  const BACKEND_URL = 'https://tubefetch-us1e.onrender.com';
+  // const BACKEND_URL = 'http://localhost:4000';
   
   let sessionId;
 
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (lower.includes('rumble.com')) return { name: 'Rumble', color: '#85c742', domains: ['.rumble.com'] };
     if (lower.includes('bitchute.com')) return { name: 'BitChute', color: '#c31e21', domains: ['.bitchute.com'] };
     if (lower.includes('mixcloud.com')) return { name: 'Mixcloud', color: '#52aad8', domains: ['.mixcloud.com'] };
-    if (lower.includes('linkedin.com')) return { name: 'LinkedIn', color: '#0a66c2', domains: ['.linkedin.com'] };
+    if (lower.includes('loom.com')) return { name: 'Loom', color: '#625df5', domains: ['.loom.com'] };
     return { name: 'Universal', color: '#6366f1', domains: [] };
   }
 
@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
     { name: 'Twitch', url: 'https://www.twitch.tv', color: '#9146ff', icon: '<path d="M11.571 4.714h1.715v5.143H11.571zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>' },
     { name: 'Rumble', url: 'https://rumble.com', color: '#85c742', icon: '<path d="M12 0c6.627 0 12 5.373 12 12s-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0zm0 4.8c-3.976 0-7.2 3.224-7.2 7.2s3.224 7.2 7.2 7.2 7.2-3.224 7.2-7.2-3.224-7.2-7.2-7.2zm0 2.4c2.651 0 4.8 2.149 4.8 4.8S14.651 14.4 12 14.4s-4.8-2.149-4.8-4.8S9.349 7.2 12 7.2z"/>' },
     { name: 'Mixcloud', url: 'https://www.mixcloud.com', color: '#52aad8', icon: '<path d="M12 0a12 12 0 1 0 12 12A12 12 0 0 0 12 0zm0 18a6 6 0 1 1 6-6 6 6 0 0 1-6 6z"/>' },
-    { name: 'LinkedIn', url: 'https://www.linkedin.com', color: '#0a66c2', icon: '<path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>' },
+    { name: 'Loom', url: 'https://www.loom.com', color: '#625df5', icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>' },
     { name: 'SoundCloud', url: 'https://soundcloud.com', color: '#ff5500', icon: '<path d="M11.5 14.125h.5V19.5h-.5V14.125zM12.5 13.5h.5V19.5h-.5V13.5zM13.5 12.5h.5V19.5h-.5V12.5zM14.5 11.5h.5V19.5h-.5V11.5zM15.5 12.5h.5V19.5h-.5V12.5zM16.5 11.5h.5V19.5h-.5V11.5zM17.5 12.5h.5V19.5h-.5V12.5zM18.5 11.5h.5V19.5h-.5V11.5zM19.5 10.5h.5V19.5h-.5V10.5zM20.5 11.5h.5V19.5h-.5V11.5zM21.5 12.5h.5V19.5h-.5V12.5zM22.5 13.5h.5V19.5h-.5V13.5zM23.5 14.5h.5V19.5h-.5V14.5zM10.5 15h.5V19.5h-.5V15zM9.5 16h.5V19.5h-.5V16zM8.5 17h.5V19.5h-.5V17zM7.5 16h.5V19.5h-.5V16zM6.5 17h.5V19.5h-.5V17zM5.5 16h.5V19.5h-.5V16zM4.5 17h.5V19.5h-.5V17zM3.5 18h.5V19.5h-.5V18zM2.5 17h.5V19.5h-.5V17zM1.5 18h.5V19.5h-.5V18zM0.5 19h.5V19.5h-.5V19zM12 4.5c4.142 0 7.5 3.358 7.5 7.5s-3.358 7.5-7.5 7.5-7.5-3.358-7.5-7.5 3.358-7.5 7.5-7.5z"/>' }
   ];
 
