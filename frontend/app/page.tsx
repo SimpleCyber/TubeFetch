@@ -33,7 +33,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLocal, setIsLocal] = useState(false);
   const [selectedFormatId, setSelectedFormatId] = useState<string>('');
-  const [embedUrl, setEmbedUrl] = useState('https://www.youtube.com/embed/WOXHcB7vP2o?si=rumgSwufkLUXi2xN&controls=0');
+  const [embedUrl, setEmbedUrl] = useState('https://www.youtube.com/embed/BK4HfFVMyUY?si=k-IDwynCYBudAv3p');
 
   const getYoutubeVideoId = (url: string) => {
     try {
