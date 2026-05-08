@@ -155,7 +155,7 @@ export default function Home() {
           </h1>
           
           <div className="flex flex-col gap-5 mb-8">
-            <div className="border border-slate-200/80 rounded-2xl p-4 bg-white shadow-sm flex flex-col gap-1 focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition-all">
+            {/* <div className="border border-slate-200/80 rounded-2xl p-4 bg-white shadow-sm flex flex-col gap-1 focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition-all">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Video URL</label>
               <div className="flex items-center gap-2">
                 <input 
@@ -167,7 +167,7 @@ export default function Home() {
                 />
                 {loading && <div className="w-4 h-4 border-2 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>}
               </div>
-            </div>
+            </div> */}
 
             {error && (
               <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1">
@@ -240,7 +240,7 @@ export default function Home() {
             </div>
           )}
 
-          <button 
+          {/* <button 
             onClick={() => handleDownload()}
             disabled={loading || !videoInfo}
             className={`w-full font-bold py-4 px-6 rounded-[1.25rem] flex justify-between items-center transition-all disabled:opacity-70 disabled:cursor-not-allowed mb-4 shadow-lg ${
@@ -256,7 +256,7 @@ export default function Home() {
               <FiArrowRight className="w-5 h-5" />
             )}
           </button>
-          
+           */}
           <button className="w-full bg-white border-2 border-slate-100 hover:border-slate-200 text-slate-800 font-bold py-4 px-6 rounded-[1.25rem] flex justify-between items-center transition-all group">
             <span className="text-[15px]">Chrome Extension</span>
             <div className="w-6 h-6 bg-slate-100 rounded flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-colors">
