@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OmniFetch Side Panel</title>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-sub: #64748b;
+      --border-color: #e2e8f0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+      --border-color: #334155;
+    }
+
+    body {
+      width: 100%;
+      min-height: 100vh;
+      padding: 16px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-main);
+      transition: background 0.3s ease;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--primary-gradient);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .logo-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: white;
+    }
+
+    .logo h1 {
+      font-size: 18px;
+      font-weight: 700;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-sub);
+      padding: 4px;
+      border-radius: 50%;
+      transition: background 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="dark"] .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Paste URL Section */
+    .search-box {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #6366f1;
+    }
+
+    .fetch-btn {
+      background: var(--primary-gradient);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 0 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.1s;
+    }
+
+    .fetch-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Status Banner */
+    .status-banner {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 4px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+    }
+
+    /* Video Info Section */
+    .video-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border-color);
+    }
+
+    .thumbnail-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+
+    .thumbnail {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .info-container {
+      padding: 16px;
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 16px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .download-btn {
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .download-btn:hover {
+      border-color: #6366f1;
+      background: rgba(99, 102, 241, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .btn-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      background: #6366f1;
+      color: white;
+      border-radius: 4px;
+      margin-bottom: 2px;
+    }
+
+    .btn-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .btn-sub {
+      font-size: 9px;
+      color: var(--text-sub);
+    }
+
+    .download-icon {
+      width: 16px;
+      height: 16px;
+      fill: var(--text-sub);
+    }
+
+    .download-btn:hover .download-icon {
+      fill: #6366f1;
+    }
+
+    /* Progress Overlay */
+    .btn-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: var(--primary-gradient);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    /* States */
+    .loading-state, .error-state, .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-sub);
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-icon {
+      width: 40px;
+      height: 40px;
+      fill: #ef4444;
+      margin-bottom: 12px;
+    }
+
+    .empty-icon {
+      width: 48px;
+      height: 48px;
+      fill: var(--text-sub);
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+    /* Platforms Footer */
+    .platforms-footer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      text-align: center;
+    }
+
+    .platforms-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .platforms-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 0 10px;
+    }
+
+    .platform-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      text-decoration: none;
+    }
+
+    .platform-item:hover {
+      transform: translateY(-2px);
+    }
+
+    .platform-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+
+    .platform-icon svg {
+      width: 100%;
+      height: 100%;
+      fill: white;
+    }
+
+    .platform-name {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14V9l5 3.5-5 3.5z"/></svg>
+      </div>
+      <h1>OmniFetch</h1>
+    </div>
+    <button class="theme-toggle" id="theme-toggle">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
+  </div>
+
+  <div class="search-box">
+    <div class="input-wrapper">
+      <input type="text" id="url-input" placeholder="Paste link here (Instagram, Pinterest, Shorts...)">
+      <button class="fetch-btn" id="fetch-btn">Fetch</button>
+    </div>
+  </div>
+
+  <div id="status-banner" class="status-banner" style="display: none;">
+    <span class="status-dot"></span>
+    <span id="platform-text">Detecting platform...</span>
+  </div>
+
+  <div id="main-content">
+    <div id="empty-state" class="empty-state">
+      <svg class="empty-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+      <p>Open a video page or paste a link to start</p>
+    </div>
+
+    <div id="loading-state" class="loading-state" style="display: none;">
+      <div class="spinner"></div>
+      <p>Analyzing media...</p>
+    </div>
+
+    <div id="error-state" class="error-state" style="display: none;">
+      <svg class="error-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      <p id="error-message">Something went wrong</p>
+    </div>
+
+    <div id="video-card" class="video-card" style="display: none;">
+      <div class="thumbnail-container">
+        <img id="thumbnail" class="thumbnail" src="" alt="Thumbnail">
+      </div>
+      <div class="info-container">
+        <h2 id="title" class="title">Video Title</h2>
+        <div id="download-grid" class="download-grid">
+          <!-- Buttons will be injected here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="platforms-footer">
+    <div class="platforms-title">Supported Platforms</div>
+    <div class="platforms-grid" id="platforms-grid">
+      <!-- Icons will be injected here -->
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

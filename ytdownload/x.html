@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TubeFetch</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 400px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #fafafa;
+      color: #333;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      color: #ff0000;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .logo-icon {
+      width: 24px;
+      height: 24px;
+      fill: #ff0000;
+    }
+
+    .video-info {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .thumbnail-container {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 Aspect Ratio */
+      background: #f0f0f0;
+      overflow: hidden;
+    }
+
+    .thumbnail {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .info-container {
+      padding: 16px;
+    }
+
+    .title {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 16px;
+      color: #1a1a1a;
+    }
+
+    .download-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .download-button {
+      background: #eff7ff;
+      border: 2px solid #e9ecef;
+      padding: 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .download-button:hover {
+      transform: translateY(-2px);
+      border-color: #dee2e6;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .download-button:active {
+      transform: translateY(0);
+    }
+
+    .quality-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .format-label {
+      font-size: 12px;
+      color: #868e96;
+    }
+
+    .download-icon {
+      width: 20px;
+      height: 20px;
+      fill: #495057;
+    }
+
+    .quality-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+    }
+
+    .download-button[data-quality="highest"] .quality-badge {
+      background: #2ecc71;
+    }
+
+    .download-button[data-quality="720p"] .quality-badge {
+      background: #3498db;
+    }
+
+    .download-button[data-quality="480p"] .quality-badge {
+      background: #f1c40f;
+    }
+
+    .download-button[data-quality="360p"] .quality-badge {
+      background: #e67e22;
+    }
+
+    .download-button[data-quality="audio"] {
+      grid-column: span 2;
+      flex-direction: row;
+      justify-content: center;
+      background: #f0f0f0;
+    }
+
+    .download-button[data-quality="audio"] .quality-badge {
+      background: #9b59b6;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 24px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #ff0000;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .error {
+      color: #dc3545;
+      text-align: center;
+      margin: 16px;
+      padding: 12px;
+      background: #fff5f5;
+      border-radius: 12px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .error-icon {
+      width: 16px;
+      height: 16px;
+      fill: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>
+      <svg class="logo-icon" viewBox="0 0 24 24">
+        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+      </svg>
+      TubeFetch
+    </h1>
+  </div>
+  
+  <div id="content">
+    <div id="loading" class="loading" style="display: none;">
+      <div class="loading-spinner"></div>
+      <span>Loading video information...</span>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+      <svg class="error-icon" viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      </svg>
+      <span id="error-message"></span>
+    </div>
+
+    <div id="video-info" class="video-info" style="display: none;">
+      <div class="thumbnail-container">
+        <img id="thumbnail" class="thumbnail" alt="Video thumbnail"/>
+      </div>
+      <div class="info-container">
+        <h2 id="title" class="title"></h2>
+        <div class="download-options">
+
+          <button class="download-button" data-quality="highest">
+            <span class="quality-badge">1080p</span>
+            <svg class="download-icon" viewBox="0 0 24 24">
+              <path d="M12 15.575L16.95 10.625L15.8875 9.5625L12.75 12.7V4.5H11.25V12.7L8.1125 9.5625L7.05 10.625L12 15.575ZM6 19.5C5.45 19.5 4.97917 19.3042 4.5875 18.9125C4.19583 18.5208 4 18.05 4 17.5V15H5.5V17.5C5.5 17.7167 5.57917 17.8958 5.7375 18.0375C5.89583 18.1792 6.075 18.25 6.275 18.25H17.725C17.925 18.25 18.1042 18.1792 18.2625 18.0375C18.4208 17.8958 18.5 17.7167 18.5 17.5V15H20V17.5C20 18.05 19.8042 18.5208 19.4125 18.9125C19.0208 19.3042 18.55 19.5 18 19.5H6Z"/>
+            </svg>
+            <span class="quality-label">Highest Quality</span>
+            <span class="format-label">MP4</span>
+          </button>
+          
+
+          <button class="download-button" data-quality="720p">
+            <span class="quality-badge">720p</span>
+            <svg class="download-icon" viewBox="0 0 24 24">
+              <path d="M12 15.575L16.95 10.625L15.8875 9.5625L12.75 12.7V4.5H11.25V12.7L8.1125 9.5625L7.05 10.625L12 15.575ZM6 19.5C5.45 19.5 4.97917 19.3042 4.5875 18.9125C4.19583 18.5208 4 18.05 4 17.5V15H5.5V17.5C5.5 17.7167 5.57917 17.8958 5.7375 18.0375C5.89583 18.1792 6.075 18.25 6.275 18.25H17.725C17.925 18.25 18.1042 18.1792 18.2625 18.0375C18.4208 17.8958 18.5 17.7167 18.5 17.5V15H20V17.5C20 18.05 19.8042 18.5208 19.4125 18.9125C19.0208 19.3042 18.55 19.5 18 19.5H6Z"/>
+            </svg>
+            <span class="quality-label">HD Quality</span>
+            <span class="format-label">MP4</span>
+          </button>
+
+          <button class="download-button" data-quality="480p">
+            <span class="quality-badge">480p</span>
+            <svg class="download-icon" viewBox="0 0 24 24">
+              <path d="M12 15.575L16.95 10.625L15.8875 9.5625L12.75 12.7V4.5H11.25V12.7L8.1125 9.5625L7.05 10.625L12 15.575ZM6 19.5C5.45 19.5 4.97917 19.3042 4.5875 18.9125C4.19583 18.5208 4 18.05 4 17.5V15H5.5V17.5C5.5 17.7167 5.57917 17.8958 5.7375 18.0375C5.89583 18.1792 6.075 18.25 6.275 18.25H17.725C17.925 18.25 18.1042 18.1792 18.2625 18.0375C18.4208 17.8958 18.5 17.7167 18.5 17.5V15H20V17.5C20 18.05 19.8042 18.5208 19.4125 18.9125C19.0208 19.3042 18.55 19.5 18 19.5H6Z"/>
+            </svg>
+            <span class="quality-label">Standard Quality</span>
+            <span class="format-label">MP4</span>
+          </button>
+
+          <button class="download-button" data-quality="360p">
+            <span class="quality-badge">360p</span>
+            <svg class="download-icon" viewBox="0 0 24 24">
+              <path d="M12 15.575L16.95 10.625L15.8875 9.5625L12.75 12.7V4.5H11.25V12.7L8.1125 9.5625L7.05 10.625L12 15.575ZM6 19.5C5.45 19.5 4.97917 19.3042 4.5875 18.9125C4.19583 18.5208 4 18.05 4 17.5V15H5.5V17.5C5.5 17.7167 5.57917 17.8958 5.7375 18.0375C5.89583 18.1792 6.075 18.25 6.275 18.25H17.725C17.925 18.25 18.1042 18.1792 18.2625 18.0375C18.4208 17.8958 18.5 17.7167 18.5 17.5V15H20V17.5C20 18.05 19.8042 18.5208 19.4125 18.9125C19.0208 19.3042 18.55 19.5 18 19.5H6Z"/>
+            </svg>
+            <span class="quality-label">Low Quality</span>
+            <span class="format-label">MP4</span>
+          </button>
+
+          <button class="download-button" data-quality="audio">
+            <span class="quality-badge">MP3</span>
+            <svg class="download-icon" viewBox="0 0 24 24">
+              <path d="M12 3V13.55C11.41 13.21 10.73 13 10 13C7.79 13 6 14.79 6 17S7.79 21 10 21 14 19.21 14 17V7H18V3H12ZM10 19C8.9 19 8 18.1 8 17S8.9 15 10 15 12 15.9 12 17 11.1 19 10 19Z"/>
+            </svg>
+            <span class="quality-label">Audio Only</span>
+            <span class="format-label">High Quality MP3</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
